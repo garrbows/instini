@@ -66,7 +66,14 @@ class Instini(object):
 					"password": password,
 				}
 				
-		x = self.session.post(self.login_url,data=data)
+		login_response = self.session.post(self.login_url,data=data)
+		
+		if login_response:
+			print("Login successful")
+		else:
+			print("Login failed, check credentials")
+			exit()
+		
 		self.session.headers.update({'X-CSRFToken' :x.cookies["csrftoken"]})
 
 	def logout(self):
@@ -75,7 +82,7 @@ class Instini(object):
 		if logout_response:
 			print("Logout successful")
 		else:
-			print("Login successful")
+			print("Logout failed")
 
 	def like_media(self,url):
 		s = self.session.post(url)
