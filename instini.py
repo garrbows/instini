@@ -38,8 +38,11 @@ class Instini(object):
                                 explore_page = explore_response.content
                                 for line in explore_page.split(b'\n'):
                                         if b'sharedData = {"config' in line:
-                                                line = line.split(b" = ")[1][:-10].replace(b"\\\\",b"")
-                                                page = json.loads(line)
+                                                #line = line.split(b" = ")[1][:-10].replace(b"\\\\",b"")
+                                                try:
+                                                    page = json.loads(line.split(b" = ")[1][:-10].replace(b"\\\\",b""))
+                                                except:
+                                                    print(line);print(line.split(b" = ")[1][:-10].replace(b"\\\\",b""));self.logout();exit()
                                                 posts = page["entry_data"]["TagPage"][0]["graphql"]["hashtag"]["edge_hashtag_to_media"]["edges"]
                                                 print("Found {0} posts ".format(len(posts)))
                                                 for post in posts:
@@ -63,17 +66,30 @@ class Instini(object):
                 
         def login(self,username,password):
                 
-                data = {
-                        "username": username,
-                        "password": password,
-                }
+                data = {"username": username,"password": password}
                                 
                 login_response = self.session.post(self.login_url,data=data)
-                if json.loads(login_response.content)["authenticated"]:
+                try:
+                    success = json.loads(login_response.content)["authenticated"]
+                except:
+                    success = False
+
+                if success:
                         print("Login successful")
                         self.logged_in = True
                 else:
-                        print("Login failed, check credentials")
+                        try:
+                            login_json = json.loads(login_response.content)
+                            failed = login_json["status"] == "fail"
+                        except:
+                            failed = False
+
+                        if(failed):
+                            print("Login failed, {0}".format(login_json["message"].lower()))
+                        else:
+                            print("Login failed, check credentials")
+
+                        #print(login_response.content)
                         exit()
                 
                 self.session.headers.update({'X-CSRFToken' :login_response.cookies["csrftoken"]})
@@ -88,16 +104,21 @@ class Instini(object):
 
         def like_media(self,url):
                 s = self.session.post(url)
-                if not s:
-                        print("Like failed")
+                try:
+                    success = (json.loads(s.content)["status"] == "ok")
+                except:
+                    success = False
+                return success
 
         def like_from_queue(self):
             count = 1
             for post in self.post_queue:
                 url = session.like_url.format(post["id"])
                 direct_url = session.media_url.format(post["shortcode"])
-                self.like_media(url)
-                logstr = "Liked post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue))
+                if(self.like_media(url)):
+                    logstr = "Liked post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue))
+                else:
+                    logstr = "ERROR: Failed to like post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue))
                 count += 1
                 print("="*len(logstr))
                 print(logstr)
@@ -110,7 +131,7 @@ password = ""
 
 session = Instini(username,password)
 session.add_tags(["food"])
-#url = session.like_url.format(session.post_queue[0]["id"])
-#session.like_media(url)
-session.like_from_queue()
+url = session.like_url.format(session.post_queue[0]["id"])
+session.like_media(url)
+#session.like_from_queue()
 session.logout()
