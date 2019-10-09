@@ -105,8 +105,8 @@ class Instini(object):
                 print()
                 time.sleep(5)
 
-username = "gmbows_"
-password = "MadTacky!1"
+username = ""
+password = ""
 
 session = Instini(username,password)
 session.add_tags(["food"])
