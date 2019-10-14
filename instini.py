@@ -24,6 +24,7 @@ class Instini(object):
                 self.login_url = "https://www.instagram.com/accounts/login/ajax/"
                 self.media_url = "https://www.instagram.com/p/{0}"
                 self.logout_url = "https://www.instagram.com/accounts/logout/"
+                self.comment_url = "https://www.instagram.com/web/comments/{0}/add/"
                 self.explore_url = "https://www.instagram.com/explore/tags/{0}/"
                 
                 self.session = requests.Session()
@@ -40,10 +41,18 @@ class Instini(object):
                                         if b'sharedData = {"config' in line:
                                                 #line = line.split(b" = ")[1][:-10].replace(b"\\\\",b"")
                                                 try:
-                                                    page = json.loads(line.split(b" = ")[1][:-10].replace(b"\\\\",b""))
+                                                    line = line.split(b" = ")[1]
+                                                    page = json.loads(line[:line.rfind(b";<")].replace(b"\\\\",b""))
                                                 except:
-                                                    print(line);print(line.split(b" = ")[1][:-10].replace(b"\\\\",b""));self.logout();exit()
-                                                posts = page["entry_data"]["TagPage"][0]["graphql"]["hashtag"]["edge_hashtag_to_media"]["edges"]
+                                                    print(line)
+                                                    print(b";</script" in line);self.logout();exit()
+                                                    print("Explore page error, exiting")
+                                                    self.logout()
+                                                    exit()
+                                                pagecount = 1
+                                                posts = []
+                                                for i in range(pagecount):
+                                                    posts.extend(page["entry_data"]["TagPage"][i]["graphql"]["hashtag"]["edge_hashtag_to_media"]["edges"])
                                                 print("Found {0} posts ".format(len(posts)))
                                                 for post in posts:
                                                     self.post_queue.append(post["node"])
@@ -54,12 +63,20 @@ class Instini(object):
                 self.session.headers.update({
                         "User-Agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:69.0) Gecko/20100101 Firefox/69.0",
                         "Host": "www.instagram.com",
+                        "Accept": "*/*",
+                        "Accept-Language": "en-US,en;q=0.5",
+                        "Accept-Encoding": "gzip, deflate, br",
+                        "DNT": "1",
+                        "Connection": "keep-alive",
+                        "Pragma": "no-cache",
+                        "Cache-Control": "no-cache",
+                        "TE": "Trailers",
                         "Origin": self.base_url,
                         "Referer": self.base_url,
                         "X-Instagram-AJAX": "1",
                         "X-Requested-With": "XMLHttpRequest",
                 })
-
+    
                 #send dummy request to get initial csrf token
                 cx = self.session.get(self.base_url)
                 self.session.headers.update({'X-CSRFToken' :cx.cookies["csrftoken"]})
@@ -110,6 +127,16 @@ class Instini(object):
                     success = False
                 return success
 
+        def comment_media(self,url,comment):
+            data = {"comment_text":comment,"replied_to_comment_id":None}
+            s = self.session.post(url,data=data)
+            try:
+                success = (json.loads(s.content)["status"] == "ok")
+            except:
+                print(s.content)
+                success = False
+            return success
+
         def like_from_queue(self):
             count = 1
             for post in self.post_queue:
@@ -131,7 +158,9 @@ password = ""
 
 session = Instini(username,password)
 session.add_tags(["food"])
-url = session.like_url.format(session.post_queue[0]["id"])
-session.like_media(url)
+url = session.like_url.format(session.post_queue[-1]["id"])
+print("Liking {0}".format(session.media_url.format(session.post_queue[-1]["shortcode"])))
+#print(session.comment_media(url,"test comment"))
+print("Like succeeded? {0}".format(str(session.like_media(url))))
 #session.like_from_queue()
 session.logout()
