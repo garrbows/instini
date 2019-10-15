@@ -41,8 +41,8 @@ comment = "test comment" #insert your comment here
 
 #like the first post you grabbed
 url = session.comment_url.format(session.post_queue[0]["id"])
-print("Commenting '{1}' on {0}".format(session.media_url.format(session.post_queue[0]["shortcode"],comment)))
-print("Like succeeded? {0}".format(str(session.comment_media(url,comment))))
+print("Commenting '{1}' on {0}".format(session.media_url.format(session.post_queue[0]["shortcode"]),comment))
+print("Comment succeeded? {0}".format(str(session.comment_media(url,comment))))
 
 #end session
 session.logout()
