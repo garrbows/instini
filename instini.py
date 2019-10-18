@@ -23,6 +23,10 @@ class Instini(object):
                 self.like_url = "https://www.instagram.com/web/likes/{0}/like/"
                 self.login_url = "https://www.instagram.com/accounts/login/ajax/"
                 self.media_url = "https://www.instagram.com/p/{0}"
+                #needs username, query string __a for image index in story
+                self.story_url = "https://www.instagram.com/stories/{0}/?" 
+                self.follow_url = "https://www.instagram.com/web/friendships/{0}/follow/"
+                self_unfollow_url = "https://www.instagram.com/web/friendships/{0}/unfollow/"
                 self.logout_url = "https://www.instagram.com/accounts/logout/"
                 self.comment_url = "https://www.instagram.com/web/comments/{0}/add/"
                 self.explore_url = "https://www.instagram.com/explore/tags/{0}/"
@@ -31,33 +35,36 @@ class Instini(object):
                 self.init_session()
                 
                 self.login(username,password)
+
+        def get_page_data(self,url):
+            page_response = self.session.get(url)
+            if page_response:
+                page = page_response.content
+                for line in page.split(b'\n'):
+                    if b'sharedData = {"config' in line:
+                        #line = line.split(b" = ")[1][:-10].replace(b"\\\\",b"")
+                        try:
+                            line = line.split(b" = ")[1]
+                            page_data = json.loads(line[:line.rfind(b";<")].replace(b"\\\\",b""))
+                        except:
+                            print(line)
+                            print(b";</script" in line);self.logout();exit()
+                            print("Explore page error, exiting")
+                            self.logout()
+                            exit()
+                return page_data
                 
         def add_tags(self,tags):
                 for tag in tags:
-                        explore_response = self.session.get(self.explore_url.format(tag))
-                        if explore_response:
-                                explore_page = explore_response.content
-                                for line in explore_page.split(b'\n'):
-                                        if b'sharedData = {"config' in line:
-                                                #line = line.split(b" = ")[1][:-10].replace(b"\\\\",b"")
-                                                try:
-                                                    line = line.split(b" = ")[1]
-                                                    page = json.loads(line[:line.rfind(b";<")].replace(b"\\\\",b""))
-                                                except:
-                                                    print(line)
-                                                    print(b";</script" in line);self.logout();exit()
-                                                    print("Explore page error, exiting")
-                                                    self.logout()
-                                                    exit()
-                                                pagecount = 1
-                                                posts = []
-                                                for i in range(pagecount):
-                                                    posts.extend(page["entry_data"]["TagPage"][i]["graphql"]["hashtag"]["edge_hashtag_to_media"]["edges"])
-                                                print("Found {0} posts ".format(len(posts)))
-                                                for post in posts:
-                                                    self.post_queue.append(post["node"])
-                                                break
-                
+                        page = self.get_page_data(self.explore_url.format(tag))
+                        pagecount = 1
+                        posts = []
+                        for i in range(pagecount):
+                            posts.extend(page["entry_data"]["TagPage"][i]["graphql"]["hashtag"]["edge_hashtag_to_media"]["edges"])
+                            print("Found {0} posts ".format(len(posts)))
+                        for post in posts:
+                            self.post_queue.append(post["node"])
+
         def init_session(self):
                 self.session.headers = requests.utils.default_headers()
                 self.session.headers.update({
@@ -76,7 +83,7 @@ class Instini(object):
                         "X-Instagram-AJAX": "1",
                         "X-Requested-With": "XMLHttpRequest",
                 })
-    
+
                 #send dummy request to get initial csrf token
                 cx = self.session.get(self.base_url)
                 self.session.headers.update({'X-CSRFToken' :cx.cookies["csrftoken"]})
@@ -119,6 +126,25 @@ class Instini(object):
                 else:
                         print("Logout failed")
 
+        def get_user_id(self,url):
+            profile_response = session.get_page_data(url)
+            if profile_response:
+                return profile_response["entry_data"]["ProfilePage"][0]["graphql"]["user"]["id"]
+            else:
+                print("ERROR: Failed to retrieve profile page")
+                return ""
+
+        def follow_user(self,userid):
+            url = self.follow_url.format(userid)
+            s = self.session.post(url)
+            try:
+                success = (json.loads(s.content)["status"] == "ok")
+                print(json.loads(s.content)["following"])
+            except:
+                print(s.content)
+                success = False
+            return success
+
         def like_media(self,url):
                 s = self.session.post(url)
                 try:
@@ -157,10 +183,4 @@ username = ""
 password = ""
 
 session = Instini(username,password)
-session.add_tags(["food"])
-url = session.like_url.format(session.post_queue[-1]["id"])
-print("Liking {0}".format(session.media_url.format(session.post_queue[-1]["shortcode"])))
-#print(session.comment_media(url,"test comment"))
-print("Like succeeded? {0}".format(str(session.like_media(url))))
-#session.like_from_queue()
 session.logout()
