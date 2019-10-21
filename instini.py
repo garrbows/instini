@@ -20,6 +20,7 @@ class Instini(object):
                 self.post_queue = []
                 
                 self.base_url = "https://instagram.com"
+                self.user_url = "https://instagram.com/{0}"
                 self.like_url = "https://www.instagram.com/web/likes/{0}/like/"
                 self.login_url = "https://www.instagram.com/accounts/login/ajax/"
                 self.media_url = "https://www.instagram.com/p/{0}"
@@ -192,5 +193,11 @@ username = ""
 password = ""
 
 session = Instini(username,password)
+
+userid = session.get_user_id("https://www.instagram.com/severogarage/")
+url = session.follow_url.format(userid)
+session.session.headers.update({"Referer": "https://www.instagram.com/severogarage/"})
+
+print("Follow succeeded? ",str(session.follow_user(userid)))
 
 session.logout()
