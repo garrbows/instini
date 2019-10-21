@@ -52,6 +52,7 @@ class Instini(object):
                             print("Explore page error, exiting")
                             self.logout()
                             exit()
+                session.set_csrf_token_from(page_response)
                 return page_data
                 
         def add_tags(self,tags):
@@ -64,6 +65,9 @@ class Instini(object):
                             print("Found {0} posts ".format(len(posts)))
                         for post in posts:
                             self.post_queue.append(post["node"])
+
+        def set_csrf_token_from(self,response):
+            self.session.headers.update({'X-CSRFToken' :response.cookies["csrftoken"]})
 
         def init_session(self):
                 self.session.headers = requests.utils.default_headers()
@@ -86,7 +90,7 @@ class Instini(object):
 
                 #send dummy request to get initial csrf token
                 cx = self.session.get(self.base_url)
-                self.session.headers.update({'X-CSRFToken' :cx.cookies["csrftoken"]})
+                self.set_csrf_token_from(cx)
                 
         def login(self,username,password):
                 
@@ -116,7 +120,7 @@ class Instini(object):
                         #print(login_response.content)
                         exit()
                 
-                self.session.headers.update({'X-CSRFToken' :login_response.cookies["csrftoken"]})
+                self.set_csrf_token_from(login_response)
 
         def logout(self):
                 logout_response = self.session.post(self.logout_url)
@@ -129,29 +133,33 @@ class Instini(object):
         def get_user_id(self,url):
             profile_response = session.get_page_data(url)
             if profile_response:
-                return profile_response["entry_data"]["ProfilePage"][0]["graphql"]["user"]["id"]
+                userid = profile_response["entry_data"]["ProfilePage"][0]["graphql"]["user"]["id"]
             else:
                 print("ERROR: Failed to retrieve profile page")
-                return ""
+                userid = 0
+            return userid
 
         def follow_user(self,userid):
             url = self.follow_url.format(userid)
+
             s = self.session.post(url)
             try:
-                success = (json.loads(s.content)["status"] == "ok")
-                print(json.loads(s.content)["following"])
+                success = (json.loads(s.content)["result"] == "following")
             except:
-                print(s.content)
                 success = False
+                f = open("t.html","wb+")
+                f.write(s.content)
+                f.close()
             return success
 
         def like_media(self,url):
-                s = self.session.post(url)
-                try:
-                    success = (json.loads(s.content)["status"] == "ok")
-                except:
-                    success = False
-                return success
+            s = self.session.post(url)
+            try:
+                success = (json.loads(s.content)["status"] == "ok")
+            except:
+                success = False
+            self.set_csrf_token_from(s)
+            return success
 
         def comment_media(self,url,comment):
             data = {"comment_text":comment,"replied_to_comment_id":None}
@@ -161,6 +169,7 @@ class Instini(object):
             except:
                 print(s.content)
                 success = False
+            self.set_csrf_token_from(s)
             return success
 
         def like_from_queue(self):
@@ -183,4 +192,5 @@ username = ""
 password = ""
 
 session = Instini(username,password)
+
 session.logout()
