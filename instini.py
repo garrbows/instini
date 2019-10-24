@@ -187,10 +187,11 @@ class Instini(object):
                 print("="*len(logstr))
                 print()
                 time.sleep(5)
-
-username = ""
-password = ""
-
-session = Instini(username,password)
-
-session.logout()
+        def get_post_time(self,post):
+            return post["taken_at_timestamp"]
+        def get_poster_id(self,post):
+            return post["owner"]
+        def post_older_than(self,post,seconds):
+            return self.get_post_time(post) <= time.time() - seconds
+        def poster_has_followers(self):
+            return 0
