@@ -15,7 +15,7 @@ class Instini(object):
         def __init__(self,username,password):
                 self.username = username
                 self.password = password
-                self.logged_in = True
+                self.logged_in = False
 
                 self.post_queue = []
                 
@@ -43,17 +43,16 @@ class Instini(object):
                 page = page_response.content
                 for line in page.split(b'\n'):
                     if b'sharedData = {"config' in line:
-                        #line = line.split(b" = ")[1][:-10].replace(b"\\\\",b"")
                         try:
-                            line = line.split(b" = ")[1]
-                            page_data = json.loads(line[:line.rfind(b";<")].replace(b"\\\\",b""))
+                            line = line[line.find(b"{"):line.rfind(b"}")+1]
+                            page_data = json.loads(line)
                         except:
                             print(line)
                             print(b";</script" in line);self.logout();exit()
                             print("Explore page error, exiting")
                             self.logout()
                             exit()
-                session.set_csrf_token_from(page_response)
+                self.set_csrf_token_from(page_response)
                 return page_data
                 
         def add_tags(self,tags):
@@ -193,11 +192,5 @@ username = ""
 password = ""
 
 session = Instini(username,password)
-
-userid = session.get_user_id("https://www.instagram.com/severogarage/")
-url = session.follow_url.format(userid)
-session.session.headers.update({"Referer": "https://www.instagram.com/severogarage/"})
-
-print("Follow succeeded? ",str(session.follow_user(userid)))
 
 session.logout()
