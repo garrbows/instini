@@ -17,6 +17,7 @@ class Instini(object):
                 self.password = password
                 self.logged_in = False
 
+                self.filters = {}
                 self.post_queue = []
                 
                 self.base_url = "https://instagram.com"
@@ -27,6 +28,7 @@ class Instini(object):
                 #needs username, query string __a for image index in story
                 self.story_url = "https://www.instagram.com/stories/{0}/?" 
                 self.follow_url = "https://www.instagram.com/web/friendships/{0}/follow/"
+                self.graphql_url = "https://www.instagram.com/graphql/query/{0}"
                 self_unfollow_url = "https://www.instagram.com/web/friendships/{0}/unfollow/"
                 self.logout_url = "https://www.instagram.com/accounts/logout/"
                 self.comment_url = "https://www.instagram.com/web/comments/{0}/add/"
@@ -131,13 +133,30 @@ class Instini(object):
                         print("Logout failed")
 
         def get_user_id(self,url):
-            profile_response = session.get_page_data(url)
+            profile_response = self.get_page_data(url)
             if profile_response:
                 userid = profile_response["entry_data"]["ProfilePage"][0]["graphql"]["user"]["id"]
             else:
                 print("ERROR: Failed to retrieve profile page")
                 userid = 0
             return userid
+
+        def get_username_from_id(self,userid):
+            return self.graphql_query("user",userid)
+
+        #query type, aux data (user id,etc.)
+        def graphql_query(self,t,data):
+            typedict = {"user":"?query_hash=aec5501414615eca36a9acf075655b1e&variables=%7B%22user_id%22%3A%22{0}%22%2C%22include_chaining%22%3Atrue%2C%22include_reel%22%3Atrue%2C%22include_suggested_users%22%3Afalse%2C%22include_logged_out_extras%22%3Afalse%2C%22include_highlight_reels%22%3Atrue%7D"
+                    }
+            if t not in typedict.keys():
+                print("Query type {0} not found".format(t))
+                return ""
+            url = self.graphql_url.format(typedict[t].format(data))
+            graphql_response = self.session.get(url)
+            if graphql_response:
+                if t == "user":
+                    return json.loads(graphql_response.content)["data"]["user"]["reel"]["owner"]["username"]
+
 
         def follow_user(self,userid):
             url = self.follow_url.format(userid)
@@ -193,5 +212,12 @@ class Instini(object):
             return post["owner"]
         def post_older_than(self,post,seconds):
             return self.get_post_time(post) <= time.time() - seconds
-        def poster_has_followers(self):
-            return 0
+        def get_followers(self,username):
+            data = self.get_page_data(self.user_url.format(username))
+            try:
+                return int(data["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_followed_by"]["count"])
+            except:
+                print("Error fetching profile data")
+                return ""
+        def poster_has_followers(self,username,count):
+            return self.get_followers(username) >= count
