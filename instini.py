@@ -19,6 +19,15 @@ class Instini(object):
 
                 self.filters = {}
                 self.post_queue = []
+                f = open("ua.txt","r")
+                self.ualist = f.readlines()
+                f.close()
+
+                self.dolike = False
+                self.like_percent = 0
+                self.docomment = True
+                self.comment_percent = 0
+                self.comment_list = []
                 
                 self.base_url = "https://instagram.com"
                 self.user_url = "https://instagram.com/{0}"
@@ -27,6 +36,7 @@ class Instini(object):
                 self.media_url = "https://www.instagram.com/p/{0}"
                 #needs username, query string __a for image index in story
                 self.story_url = "https://www.instagram.com/stories/{0}/?" 
+                self.story_watch_url = "https://www.instagram.com/stories/reel/seen/"
                 self.follow_url = "https://www.instagram.com/web/friendships/{0}/follow/"
                 self.graphql_url = "https://www.instagram.com/graphql/query/{0}"
                 self_unfollow_url = "https://www.instagram.com/web/friendships/{0}/unfollow/"
@@ -38,6 +48,16 @@ class Instini(object):
                 self.init_session()
                 
                 self.login(username,password)
+
+                self.interaction_delay = 20
+                self.interaction_reset = 100
+
+                f = open("ua.txt","r")
+                self.ualist = f.readlines()
+                f.close()
+
+        def get_random_ua(self):
+            return random.choice(self.ualist).replace("\n","")
 
         def get_page_data(self,url):
             page_response = self.session.get(url)
@@ -69,7 +89,10 @@ class Instini(object):
                             self.post_queue.append(post["node"])
 
         def set_csrf_token_from(self,response):
-            self.session.headers.update({'X-CSRFToken' :response.cookies["csrftoken"]})
+            try:
+                self.session.headers.update({'X-CSRFToken' :response.cookies["csrftoken"]})
+            except:
+                print()
 
         def init_session(self):
                 self.session.headers = requests.utils.default_headers()
@@ -157,7 +180,6 @@ class Instini(object):
                 if t == "user":
                     return json.loads(graphql_response.content)["data"]["user"]["reel"]["owner"]["username"]
 
-
         def follow_user(self,userid):
             url = self.follow_url.format(userid)
 
@@ -191,21 +213,80 @@ class Instini(object):
             self.set_csrf_token_from(s)
             return success
 
-        def like_from_queue(self):
+        def like_from_queue(self,percent=100):
+            self.like_percent = percent
+            self.dolike = True
+
+        def comment_from_queue(self,commentList,percent=100):
+            self.comment_list = commentList
+            self.comment_percent = percent
+            self.docomment = True
+        
+        def interact_from_queue(self):
             count = 1
-            for post in self.post_queue:
-                url = session.like_url.format(post["id"])
+            do_like = False
+            do_comment = False
+            print("\nInteracting with {0} posts with following rules:".format(len(self.post_queue)))
+            if(self.dolike):
+                print("\tLike {0}% of posts".format(self.like_percent))
+            if(self.docomment):
+                print("\tComment on {0}% of posts".format(self.comment_percent))
+                print("\n\t==================\n\tComment selection: \n\t"+"\n\t".join(self.comment_list)+"\n\t==================\n")
+            checked = []
+            for i in range(len(self.post_queue)):
+                post = random.choice(self.post_queue)
+                while post in checked:
+                    post = random.choice(self.post_queue)
+                checked.append(post)
+                com_url = session.comment_url.format(post["id"])
+                l_url = session.like_url.format(post["id"])
                 direct_url = session.media_url.format(post["shortcode"])
-                if(self.like_media(url)):
-                    logstr = "Liked post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue))
-                else:
-                    logstr = "ERROR: Failed to like post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue))
+                if(self.like_from_queue):
+                    do_like = random.randrange(0,100) <= self.like_percent
+                if(self.comment_from_queue):
+                    do_comment = random.randrange(0,100) <= self.comment_percent
+
+                if(not (do_comment or do_like)):
+                    print("Skipping post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue)))
+                    count  += 1
+                    continue
+                logstr = ""
+                if(do_comment):
+                    comment = random.choice(self.comment_list)
+                    if(self.comment_media(com_url,comment)):
+                        logstr += "Commented '{3}' on post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue),comment)
+                    else:
+                        logstr += "ERROR: Failed to comment '{3}' on post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue),comment)
+                        print("Sleeping for "+str(self.interaction_reset)+" seconds to reset interaction cooldown")
+                        time.sleep(self.interaction_reset)
+                if(do_like):
+                    if(self.like_media(l_url)):
+                        logstr += "\nLiked post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue))
+                    else:
+                        logstr += "\nERROR: Failed to like post ({1}/{2}): {0}".format(direct_url,count,len(self.post_queue))
+                        print("Sleeping for "+str(self.interaction_reset)+" seconds to reset interaction cooldown")
+                        time.sleep(self.interaction_reset)
                 count += 1
-                print("="*len(logstr))
-                print(logstr)
-                print("="*len(logstr))
+                if "\n" in logstr:
+                    if logstr[0] == "\n":
+                        logstr = logstr[1:]
+                        print("="*len(logstr))
+                        print(logstr)
+                        print("="*len(logstr))
+                    else:
+                        print("="*len(logstr.split("\n")[1]))
+                        print(logstr)
+                        print("="*len(logstr.split("\n")[1]))
+                else:
+                    print("="*len(logstr))
+                    print(logstr)
+                    print("="*len(logstr))
                 print()
-                time.sleep(5)
+                f = open("log.txt","a+")
+                f.write(logstr+"\n")
+                f.close()
+                time.sleep(self.interaction_delay)
+
         def get_post_time(self,post):
             return post["taken_at_timestamp"]
         def get_poster_id(self,post):
@@ -221,3 +302,52 @@ class Instini(object):
                 return ""
         def poster_has_followers(self,username,count):
             return self.get_followers(username) >= count
+
+        def start(self):
+            self.interact_from_queue()
+
+        def get_stories(self,username):
+            has_highlights = has_story = False
+            data = self.get_page_data(self.user_url.format(username))
+            #fetch stories
+            if(len(data["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_owner_to_timeline_media"]["edges"]) > 0):
+                has_story = True
+                story_ids = [i["node"]["id"] for i in data["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_owner_to_timeline_media"]["edges"]]
+                story_times = [i["node"]["taken_at_timestamp"] for i in data["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_owner_to_timeline_media"]["edges"]]
+                #story_reel_id = ["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_owner_to_timeline_media"]["edges"][0]["node"]["owner"]["id"]
+                userid = self.get_user_id(self.user_url.format(username))
+            #fetch highlights
+            if(int(data["entry_data"]["ProfilePage"][0]["graphql"]["user"]["highlight_reel_count"]) > 0):
+                has_highlights = True
+                highlight_ids = [i["node"]["id"] for i in data["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_felix_video_timeline"]["edges"]]
+                highlight_times = [i["node"]["taken_at_timestamp"] for i in data["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_felix_video_timeline"]["edges"]]
+                try:
+                    highlight_reel_id = data["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_felix_video_timeline"]["edges"][0]["node"]["owner"]["id"]
+                except:
+                    highlight_reel_id = ""
+            else:
+                hightlight_ids = hightlight_times = []
+                highlight_reel_id = 0
+            stories = []
+            if has_story:
+                for i in range(len(story_ids)):
+                    stories.append(
+                    {
+                      "reelMediaId":str(story_ids[i]),
+                      "reelMediaOwnerId":str(userid),
+                      "reelId":str(userid),
+                      "reelMediaTakenAt":str(story_times[i]),
+                      "viewSeenAt":str(9999999999)
+                    })
+            if has_highlights:
+                for i in range(len(highlight_ids)):
+                    stories.append(
+                    { 
+                      "reelMediaId":str(highlight_ids[i]),
+                      "reelMediaOwnerId":str(userid),
+                      "reelId":"highlight:"+str(highlight_ids[i]),
+                      "reelMediaTakenAt":str(highlight_times[i]),
+                      "viewSeenAt":str(9999999999)
+                    })
+            return stories
+
