@@ -19,9 +19,9 @@ class Instini(object):
 
                 self.filters = {}
                 self.post_queue = []
-                f = open("ua.txt","r")
-                self.ualist = f.readlines()
-                f.close()
+                #f = open("ua.txt","r")
+                #self.ualist = f.readlines()
+                #f.close()
 
                 self.dolike = False
                 self.like_percent = 0
@@ -49,15 +49,16 @@ class Instini(object):
                 
                 self.login(username,password)
 
-                self.interaction_delay = 20
-                self.interaction_reset = 100
+                self.interaction_delay = 200
+                self.interation_random_interval_max = 100
+                self.interaction_reset = 500
 
-                f = open("ua.txt","r")
-                self.ualist = f.readlines()
-                f.close()
+                #f = open("ua.txt","r")
+                #self.ualist = f.readlines()
+                #f.close()
 
-        def get_random_ua(self):
-            return random.choice(self.ualist).replace("\n","")
+        #def get_random_ua(self):
+        #    return random.choice(self.ualist).replace("\n","")
 
         def get_page_data(self,url):
             page_response = self.session.get(url)
@@ -84,7 +85,7 @@ class Instini(object):
                         posts = []
                         for i in range(pagecount):
                             posts.extend(page["entry_data"]["TagPage"][i]["graphql"]["hashtag"]["edge_hashtag_to_media"]["edges"])
-                            print("Found {0} posts ".format(len(posts)))
+                            print("Found {0} posts for tag {1}".format(len(posts),tag))
                         for post in posts:
                             self.post_queue.append(post["node"])
 
@@ -285,7 +286,9 @@ class Instini(object):
                 f = open("log.txt","a+")
                 f.write(logstr+"\n")
                 f.close()
-                time.sleep(self.interaction_delay)
+                sleepfor = self.interaction_delay + random.randrange(self.interation_random_interval_max)
+                print("Sleeping for "+str(sleepfor)+" seconds.")
+                time.sleep(sleepfor)
 
         def get_post_time(self,post):
             return post["taken_at_timestamp"]
@@ -350,4 +353,3 @@ class Instini(object):
                       "viewSeenAt":str(9999999999)
                     })
             return stories
-
