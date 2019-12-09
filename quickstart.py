@@ -52,3 +52,4 @@ if like or comment:
     session.interact_from_queue()
 
 print("Session finished, exiting.")
+session.logout()
