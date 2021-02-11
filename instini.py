@@ -143,7 +143,6 @@ class Instini(object):
                         else:
                             print("Login failed, check credentials")
 
-                        #print(login_response.content)
                         exit()
                 
                 self.set_csrf_token_from(login_response)
