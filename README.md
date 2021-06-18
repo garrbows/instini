@@ -1,6 +1,6 @@
 # Instini
 
-Instini is an http based instagram bot.
+Instini is an http based Instagram bot.
 
 
 ## Features
