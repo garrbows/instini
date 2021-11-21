@@ -44,4 +44,4 @@ comments = ["nice","not bad","cool","don't care","amazing","unbelievable","Post 
 
 ## Disclaimer
 
-YOUR INSTAGRAM ACCOUNT MAY BE BANNED IF YOU USE THIS. USE AT YOUR OWN RISK.
+Your account may be flagged as suspicious for using this script. Use at your own risk.
