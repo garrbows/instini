@@ -1,6 +1,6 @@
 # Instini
 
-Instini is an http based Instagram bot.
+Instini is an http based Instagram bot designed to produce generic interactions with public posts.
 
 
 ## Features
@@ -42,3 +42,6 @@ comments = ["nice","not bad","cool","don't care","amazing","unbelievable","Post 
 #...
 ```
 
+## Disclaimer
+
+YOUR INSTAGRAM ACCOUNT MAY BE BANNED IF YOU USE THIS. USE AT YOUR OWN RISK.
